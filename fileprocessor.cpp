@@ -46,8 +46,6 @@ void FileProcessor::start(const AppConfig& config) {
 
 void FileProcessor::runProcessing() {
 
-    emit statusMessege("Scanning directory");
-
     QDir inputDir(m_config.inputDir);
 
     if(!inputDir.exists()) {
@@ -74,6 +72,8 @@ void FileProcessor::runProcessing() {
     }
 
     int processedCount = 0;
+
+     emit statusMessege(QString("Files found - %1").arg(fileList.count()));
 
     for(const QFileInfo &fileInfo : fileList) {
 

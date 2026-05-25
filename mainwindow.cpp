@@ -101,9 +101,9 @@ void MainWindow::updateUIState(bool isProcessing) {
     ui->spnSingleRun->setEnabled(!isProcessing);
     ui->radRename->setEnabled(!isProcessing);
 
-    ui->btnStart->setEnabled(!isProcessing);
-    ui->btnPause->setEnabled(isProcessing);
-    ui->btnStop->setEnabled(isProcessing);
+    ui->btnStart->setEnabled(!isProcessing  && !m_timer->isActive());
+    ui->btnPause->setEnabled(isProcessing || m_timer->isActive());
+    ui->btnStop->setEnabled(isProcessing || m_timer->isActive());
 
     if(!isProcessing)
         ui->btnPause->setText("Pause");
@@ -135,8 +135,9 @@ void MainWindow::on_btnStart_clicked()
 
     AppConfig config = fillConfig();
 
+                    ui->txtLog->clear();
+
     if(config.runByTimer) {
-                ui->txtLog->clear();
         ui->txtLog->append("Timer mode has been activated");
         m_timer->setInterval(config.timerInterval);
         m_timer->start();
@@ -145,13 +146,11 @@ void MainWindow::on_btnStart_clicked()
     }
     else {
 
-        ui->txtLog->clear();
-
         ui->progressBar->setValue(0);
 
         updateUIState(true);
 
-            emit start(config);
+        emit start(config);
 
     }
 }
@@ -161,7 +160,6 @@ void MainWindow::onTimerTicked() {
         return;
     }
 
-    ui->progressBar->setValue(0);
     updateUIState(true);
 
     AppConfig config = fillConfig();
@@ -176,12 +174,16 @@ void MainWindow::on_btnPause_clicked()
         emit pause();
         ui->btnPause->setText("Resume");
 
+        if(m_timer->isActive()) {
+            m_timer->stop();
+        }
+
         ui->txtLog->append("Pause processing");
     }
     else {
         emit resume();
         ui->btnPause->setText("Pause");
-
+        m_timer->start();
         ui->txtLog->append("Resume processing");
     }
 }
@@ -229,6 +231,7 @@ void MainWindow::onFileFinished(const QString &filname) {
 
 void MainWindow::onAllWorkFinished() {
     updateUIState(false);
+    ui->progressBar->setValue(0);
 
     if(ui->chkTimer->isChecked()) {
         ui->txtLog->append("");

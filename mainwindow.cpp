@@ -37,7 +37,7 @@ void MainWindow::setThread() {
 
     connect(m_workerThread, &QThread::finished, m_processor, &QObject::deleteLater);
 
-        connect(m_timer, &QTimer::timeout, this, &MainWindow::onTimerTicked);
+    connect(m_timer, &QTimer::timeout, this, &MainWindow::onTimerTicked);
 
     connect(m_processor, &FileProcessor::statusMessege, this, &MainWindow::onStatusMessage);
     connect(m_processor, &FileProcessor::fileStarted, this, &MainWindow::onFileStarted);
@@ -48,7 +48,7 @@ void MainWindow::setThread() {
 
     connect(this, &MainWindow::pause, m_processor, &FileProcessor::pause, Qt::QueuedConnection);
     connect(this, &MainWindow::stop, m_processor, &FileProcessor::cancel, Qt::QueuedConnection);
-    connect(this, &MainWindow::resume, m_processor, &FileProcessor::resume, Qt::DirectConnection);
+    connect(this, &MainWindow::resume, m_processor, &FileProcessor::resume, Qt::QueuedConnection);
     connect(this, &MainWindow::start, m_processor, &FileProcessor::start, Qt::QueuedConnection);
 
     m_workerThread->start();
@@ -101,6 +101,7 @@ void MainWindow::updateUIState(bool isProcessing) {
     ui->spnSingleRun->setEnabled(!isProcessing);
     ui->radRename->setEnabled(!isProcessing);
 
+
     ui->btnStart->setEnabled(!isProcessing  && !m_timer->isActive());
     ui->btnPause->setEnabled(isProcessing || m_timer->isActive());
     ui->btnStop->setEnabled(isProcessing || m_timer->isActive());
@@ -133,38 +134,35 @@ void MainWindow::on_btnStart_clicked()
     if(!checkInputs())
         return;
 
+    m_isStopProcessing = false;
+
     AppConfig config = fillConfig();
 
-                    ui->txtLog->clear();
+    ui->txtLog->clear();
 
     if(config.runByTimer) {
         ui->txtLog->append("Timer mode has been activated");
         m_timer->setInterval(config.timerInterval);
-        m_timer->start();
-
-        onTimerTicked();
-    }
-    else {
-
-        ui->progressBar->setValue(0);
-
-        updateUIState(true);
-
-        emit start(config);
 
     }
+
+    ui->progressBar->setValue(0);
+
+    updateUIState(true);
+
+    emit start(config);
+
 }
 
 void MainWindow::onTimerTicked() {
-    if(m_isProcessingActive) {
-        return;
-    }
+
+    m_timer->stop();
 
     updateUIState(true);
 
     AppConfig config = fillConfig();
 
-            emit start(config);
+    emit start(config);
 
 }
 
@@ -174,26 +172,31 @@ void MainWindow::on_btnPause_clicked()
         emit pause();
         ui->btnPause->setText("Resume");
 
-        if(m_timer->isActive()) {
+        if(m_timer->isActive() && !m_isProcessingActive) {
             m_timer->stop();
         }
 
-        ui->txtLog->append("Pause processing");
+
+        ui->txtLog->append("Pause");
     }
     else {
         emit resume();
         ui->btnPause->setText("Pause");
-        m_timer->start();
-        ui->txtLog->append("Resume processing");
+        if(!m_isProcessingActive) {
+            m_timer->start();
+        }
+        ui->txtLog->append("Resume");
     }
 }
 
 
 void MainWindow::on_btnStop_clicked()
 {
+    m_isStopProcessing = true;
+
     if(ui->btnPause->text() == "Resume") {
-        emit resume();
         ui->btnPause->setText("Pause");
+        emit resume();
     }
 
     if(m_timer->isActive()) {
@@ -204,7 +207,7 @@ void MainWindow::on_btnStop_clicked()
     ui->txtLog->append("Stop processing");
 
     ui->progressBar->setValue(0);
-
+    updateUIState(false);
 
     emit stop();
 }
@@ -230,13 +233,16 @@ void MainWindow::onFileFinished(const QString &filname) {
 }
 
 void MainWindow::onAllWorkFinished() {
-    updateUIState(false);
     ui->progressBar->setValue(0);
 
-    if(ui->chkTimer->isChecked()) {
+    if(ui->chkTimer->isChecked() && !m_isStopProcessing) {
         ui->txtLog->append("");
         ui->txtLog->append("Waiting for next timer tick");
+        m_timer->start();
     }
+
+    updateUIState(false);
+
 }
 
 void MainWindow::onErrorOccured(const QString& error) {

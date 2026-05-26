@@ -64,6 +64,7 @@ private:
     QTimer* m_timer;
 
     bool m_isProcessingActive;
+    bool m_isStopProcessing = false;
 
     FileProcessor* m_processor;
 };

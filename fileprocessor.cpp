@@ -21,8 +21,8 @@ void FileProcessor::pause() {
 
 void FileProcessor::resume() {
 
-        m_isPaused = false;
-        m_pauseCondition.wakeAll();
+    m_isPaused = false;
+    m_pauseCondition.wakeAll();
 
 
 }
@@ -73,7 +73,7 @@ void FileProcessor::runProcessing() {
 
     int processedCount = 0;
 
-     emit statusMessege(QString("Files found - %1").arg(fileList.count()));
+    emit statusMessege(QString("Files found - %1").arg(fileList.count()));
 
     for(const QFileInfo &fileInfo : fileList) {
 
@@ -82,7 +82,7 @@ void FileProcessor::runProcessing() {
 
         emit fileStarted(fileInfo.fileName());
 
-            emit statusMessege(QString("Start processing file №%1").arg(processedCount + 1));
+        emit statusMessege(QString("Start processing file №%1").arg(processedCount + 1));
 
         bool isSuccess = proccessingSingleFile(fileInfo.absoluteFilePath(), m_config);
 
@@ -97,7 +97,8 @@ void FileProcessor::runProcessing() {
         }
 
     }
-        emit statusMessege(QString("Successfully processed files - %1").arg(processedCount));
+    emit statusMessege("");
+    emit statusMessege(QString("Successfully processed files - %1").arg(processedCount));
 
     emit allWorkFinished();
 }
@@ -137,23 +138,25 @@ bool FileProcessor::proccessingSingleFile(const QString& inputPath, const AppCon
         if (QThread::currentThread()->eventDispatcher())
             QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents);
 
-
-        if(m_isPaused) {
-            m_pauseMutex.lock();
-
-            while(m_isPaused && !m_isCancelled) {
-                m_pauseCondition.wait(&m_pauseMutex);
-            }
-
-            m_pauseMutex.unlock();
-
-        }
-
         if(m_isCancelled) {
             inFile.close();
             outFile.close();
             outFile.remove();
             return false;
+        }
+
+        if(m_isPaused) {
+
+            m_pauseMutex.lock();
+
+            while(m_isPaused && !m_isCancelled) {
+                QThread::currentThread()->eventDispatcher()->processEvents(QEventLoop::AllEvents);
+                if (m_isPaused)
+                    QThread::currentThread()->msleep(50);
+            }
+
+            m_pauseMutex.unlock();
+
         }
 
         qint64 bytesRead = inFile.read(buffer.data(), buffer_size);

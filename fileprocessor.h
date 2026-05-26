@@ -38,9 +38,6 @@ private:
     bool proccessingSingleFile(const QString &inputPath, const AppConfig& config);
     QString generateOutPath(const QString& inputPath, const AppConfig& config);
 
-    QMutex m_pauseMutex;
-    QWaitCondition m_pauseCondition;
-
     std::atomic<bool> m_isPaused{false};
     std::atomic<bool> m_isCancelled{false};
 
